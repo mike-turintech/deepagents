@@ -1,312 +1,597 @@
-# 🚀🧠 Deep Agents
+# 🌿 Automated SEO Article Generator for Natura Parga
 
-Agents can increasingly tackle long-horizon tasks, [with agent task length doubling every 7 months](https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/)! But, long horizon tasks often span dozens of tool calls, which present cost and reliability challenges. Popular agents such as [Claude Code](https://code.claude.com/docs) and [Manus](https://www.youtube.com/watch?v=6_BcCthVvb8) use some common principles to address these challenges, including **planning** (prior to task execution), **computer access** (giving the agent access to a shell and a filesystem), and **sub-agent delegation** (isolated task execution). `deepagents` is a simple agent harness that implements these tools, but is open source and easily extendable with your own custom tools and instructions.
+An intelligent, automated content generation system that creates SEO-optimized articles for [Natura Parga](https://naturaparga.com) using AI-powered research and content generation.
 
-<img src=".github/images/deepagents_banner.png" alt="deep agent" width="100%"/>
+## 📖 Table of Contents
 
-## 📚 Resources
+- [Overview](#overview)
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+  - [Environment Variables](#environment-variables)
+  - [Obtaining API Keys](#obtaining-api-keys)
+- [Usage](#usage)
+  - [Basic Usage](#basic-usage)
+  - [Dry Run Mode](#dry-run-mode)
+  - [Specific Topic](#specific-topic)
+- [Scheduling Automated Runs](#scheduling-automated-runs)
+  - [macOS/Linux (cron)](#macoslinux-cron)
+  - [Windows (Task Scheduler)](#windows-task-scheduler)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
 
-- **[Documentation](https://docs.langchain.com/oss/python/deepagents/overview)** - Full overview and API reference
-- **[Quickstarts Repo](https://github.com/langchain-ai/deepagents-quickstarts)** - Examples and use-cases
-- **[CLI](libs/deepagents-cli/)** - Interactive command-line interface with skills, memory, and HITL workflows
+---
 
-## 🚀 Quickstart
+## Overview
 
-You can give `deepagents` custom tools. Below, we'll optionally provide the `tavily` tool to search the web. This tool will be added to the `deepagents` build-in tools (see below).
+This project automates the creation and publishing of SEO-optimized articles to WordPress. It uses:
+
+- **Claude (Anthropic)** for intelligent content generation
+- **Tavily** for web research and fact-checking
+- **WordPress REST API** for automated publishing
+
+The system researches topics, generates high-quality articles with proper SEO structure, and publishes them directly to your WordPress site.
+
+## Features
+
+- 🔍 **Automated Research**: Uses Tavily to gather relevant, up-to-date information
+- 🤖 **AI-Powered Writing**: Generates natural, engaging content with Claude
+- 📈 **SEO Optimization**: Proper heading structure, meta descriptions, keywords
+- 📝 **WordPress Integration**: Direct publishing via REST API
+- 🔒 **Secure Authentication**: Uses WordPress Application Passwords
+- 🏃 **Dry Run Mode**: Test content generation without publishing
+- ⏰ **Schedulable**: Run automatically via cron or Task Scheduler
+
+## Prerequisites
+
+Before setting up this project, ensure you have:
+
+### Required Software
+
+- **Python 3.11 or higher**
+  ```bash
+  python --version  # Should show 3.11+
+  ```
+
+### Required Accounts
+
+1. **WordPress Site** with admin access (e.g., https://naturaparga.com)
+2. **Anthropic Account** for Claude API access
+3. **Tavily Account** for web search API
+
+### Optional Accounts
+
+4. **OpenAI Account** (optional fallback LLM)
+
+## Installation
+
+### 1. Clone the Repository
 
 ```bash
-pip install deepagents tavily-python
+git clone <repository-url>
+cd seo-article-generator
 ```
 
-Set `TAVILY_API_KEY` in your environment ([get one here](https://www.tavily.com/)):
+### 2. Create a Virtual Environment
 
-```python
-import os
-from deepagents import create_deep_agent
+```bash
+# Create virtual environment
+python -m venv venv
 
-tavily_client = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
+# Activate it
+# On macOS/Linux:
+source venv/bin/activate
 
-def internet_search(query: str, max_results: int = 5):
-    """Run a web search"""
-    return tavily_client.search(query, max_results=max_results)
-
-agent = create_deep_agent(
-    tools=[internet_search],
-    system_prompt="Conduct research and write a polished report.",
-)
-
-result = agent.invoke({"messages": [{"role": "user", "content": "What is LangGraph?"}]})
+# On Windows:
+.\venv\Scripts\activate
 ```
 
-The agent created with `create_deep_agent` is compiled [LangGraph StateGraph](https://docs.langchain.com/oss/python/langgraph/overview), so it can used it with streaming, human-in-the-loop, memory, or Studio just like any LangGraph agent. See our [quickstarts repo](https://github.com/langchain-ai/deepagents-quickstarts) for more examples.
+### 3. Install Dependencies
 
-## Customizing Deep Agents
-
-There are several parameters you can pass to `create_deep_agent`.
-
-### `model`
-
-By default, `deepagents` uses `"claude-sonnet-4-5-20250929"`. You can customize this by passing any [LangChain model object](https://python.langchain.com/docs/integrations/chat/).
-
-```python
-from langchain.chat_models import init_chat_model
-from deepagents import create_deep_agent
-
-model = init_chat_model("openai:gpt-4o")
-agent = create_deep_agent(
-    model=model,
-)
+```bash
+pip install -r requirements.txt
 ```
 
-### `system_prompt`
+### 4. Configure Environment
 
-You can provide a `system_prompt` parameter to `create_deep_agent()`. This custom prompt is **appended to** default instructions that are automatically injected by middleware.
+```bash
+# Copy the example environment file
+cp .env.example .env
 
-When writing a custom system prompt, you should:
-
-- ✅ Define domain-specific workflows (e.g., research methodology, data analysis steps)
-- ✅ Provide concrete examples for your use case
-- ✅ Add specialized guidance (e.g., "batch similar research tasks into a single TODO")
-- ✅ Define stopping criteria and resource limits
-- ✅ Explain how tools work together in your workflow
-
-**Don't:**
-
-- ❌ Re-explain what standard tools do (already covered by middleware)
-- ❌ Duplicate middleware instructions about tool usage
-- ❌ Contradict default instructions (work with them, not against them)
-
-```python
-from deepagents import create_deep_agent
-research_instructions = """your custom system prompt"""
-agent = create_deep_agent(
-    system_prompt=research_instructions,
-)
+# Edit with your actual values
+nano .env  # or use your preferred editor
 ```
 
-See our [quickstarts repo](https://github.com/langchain-ai/deepagents-quickstarts) for more examples.
+## Configuration
 
-### `tools`
+### Environment Variables
 
-Provide custom tools to your agent (in addition to [Built-in Tools](#built-in-tools)):
+Create a `.env` file in the project root with the following variables:
 
-```python
-from deepagents import create_deep_agent
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `WORDPRESS_URL` | ✅ | Your WordPress site URL (e.g., `https://naturaparga.com`) |
+| `WORDPRESS_USERNAME` | ✅ | WordPress admin username |
+| `WORDPRESS_APP_PASSWORD` | ✅ | WordPress Application Password (see below) |
+| `ANTHROPIC_API_KEY` | ✅ | Claude API key for content generation |
+| `TAVILY_API_KEY` | ✅ | Tavily API key for web research |
+| `OPENAI_API_KEY` | ❌ | Optional fallback LLM |
+| `LOG_LEVEL` | ❌ | Logging level (default: `INFO`) |
+| `DRY_RUN` | ❌ | Set to `true` to test without publishing |
 
-def internet_search(query: str) -> str:
-    """Run a web search"""
-    return tavily_client.search(query)
+### Obtaining API Keys
 
-agent = create_deep_agent(tools=[internet_search])
+#### WordPress Application Password
+
+WordPress Application Passwords provide secure API access without using your main password.
+
+1. Log in to your WordPress admin dashboard
+2. Go to **Users → Profile** (or **Users → Your Profile**)
+3. Scroll down to **Application Passwords**
+4. Enter a name for the application (e.g., "SEO Article Generator")
+5. Click **Add New Application Password**
+6. **Copy the generated password immediately** (it won't be shown again!)
+7. The password format looks like: `xxxx xxxx xxxx xxxx xxxx xxxx`
+
+> ⚠️ **Important**: Store this password securely. You can revoke it anytime from the same page.
+
+#### Anthropic API Key (Claude)
+
+1. Go to [Anthropic Console](https://console.anthropic.com/)
+2. Sign up or log in to your account
+3. Navigate to **Settings → API Keys**
+4. Click **Create Key**
+5. Name your key (e.g., "SEO Generator")
+6. Copy the key (starts with `sk-ant-api03-`)
+
+> 💡 **Pricing**: Anthropic charges per token. See [pricing page](https://anthropic.com/pricing) for details.
+
+#### Tavily API Key
+
+1. Go to [Tavily](https://tavily.com/)
+2. Sign up for an account
+3. Navigate to your dashboard
+4. Copy your API key (starts with `tvly-`)
+
+> 💡 **Free Tier**: Tavily offers a free tier with limited searches per month.
+
+#### OpenAI API Key (Optional)
+
+1. Go to [OpenAI Platform](https://platform.openai.com/)
+2. Sign up or log in
+3. Navigate to **API Keys**
+4. Click **Create new secret key**
+5. Copy the key (starts with `sk-`)
+
+### Validate Configuration
+
+After setting up your `.env` file, validate your configuration:
+
+```bash
+python config.py
 ```
 
-You can also connect MCP tools via [langchain-mcp-adapters](https://github.com/langchain-ai/langchain-mcp-adapters):
+You should see:
+```
+✅ Configuration loaded successfully!
 
-```python
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from deepagents import create_deep_agent
-
-async def main():
-    mcp_client = MultiServerMCPClient(...)
-    mcp_tools = await mcp_client.get_tools()
-    agent = create_deep_agent(tools=mcp_tools)
-
-    async for chunk in agent.astream({"messages": [{"role": "user", "content": "..."}]}):
-        chunk["messages"][-1].pretty_print()
+Configuration summary:
+  WordPress URL: https://naturaparga.com
+  WordPress User: your_username
+  Anthropic API Key: ✓ Configured
+  OpenAI API Key: ○ Not configured (optional)
+  Tavily API Key: ✓ Configured
+  Log Level: INFO
+  Dry Run: False
 ```
 
-### `middleware`
+## Usage
 
-Deep agents use [middleware](https://docs.langchain.com/oss/python/langchain/middleware) for extensibility (see [Built-in Tools](#built-in-tools) for defaults). Add custom middleware to inject tools, modify prompts, or hook into the agent lifecycle:
+### Basic Usage
 
-```python
-from langchain_core.tools import tool
-from deepagents import create_deep_agent
-from langchain.agents.middleware import AgentMiddleware
+Run the article generator with default settings:
 
-@tool
-def get_weather(city: str) -> str:
-    """Get the weather in a city."""
-    return f"The weather in {city} is sunny."
-
-class WeatherMiddleware(AgentMiddleware):
-    tools = [get_weather]
-
-agent = create_deep_agent(middleware=[WeatherMiddleware()])
+```bash
+python run_article.py
 ```
 
-### `subagents`
+### Dry Run Mode
 
-The main agent can delegate work to sub-agents via the `task` tool (see [Built-in Tools](#built-in-tools)). You can supply custom sub-agents for context isolation and custom instructions:
+Test content generation without publishing to WordPress:
 
-```python
-from deepagents import create_deep_agent
+```bash
+# Via command line flag
+python run_article.py --dry-run
 
-research_subagent = {
-    "name": "research-agent",
-    "description": "Used to research in-depth questions",
-    "prompt": "You are an expert researcher",
-    "tools": [internet_search],
-    "model": "openai:gpt-4o",  # Optional, defaults to main agent model
-}
+# Or via environment variable
+DRY_RUN=true python run_article.py
 
-agent = create_deep_agent(subagents=[research_subagent])
+# Or set in .env file
+# DRY_RUN=true
 ```
 
-For complex cases, pass a pre-built LangGraph graph:
+### Specific Topic
 
-```python
-from deepagents import CompiledSubAgent, create_deep_agent
+Generate an article about a specific topic:
 
-custom_graph = create_agent(model=..., tools=..., prompt=...)
-
-agent = create_deep_agent(
-    subagents=[CompiledSubAgent(
-        name="data-analyzer",
-        description="Specialized agent for data analysis",
-        runnable=custom_graph
-    )]
-)
+```bash
+python run_article.py --topic "Valtos Beach"
 ```
 
-See the [subagents documentation](https://docs.langchain.com/oss/python/deepagents/subagents) for more details.
+### Additional Options
 
-### `interrupt_on`
+```bash
+# Show help
+python run_article.py --help
 
-Some tools may be sensitive and require human approval before execution. Deepagents supports human-in-the-loop workflows through LangGraph’s interrupt capabilities. You can configure which tools require approval using a checkpointer.
+# Verbose output (debug logging)
+python run_article.py --verbose
 
-These tool configs are passed to our prebuilt [HITL middleware](https://docs.langchain.com/oss/python/langchain/middleware#human-in-the-loop) so that the agent pauses execution and waits for feedback from the user before executing configured tools.
-
-```python
-from langchain_core.tools import tool
-from deepagents import create_deep_agent
-
-@tool
-def get_weather(city: str) -> str:
-    """Get the weather in a city."""
-    return f"The weather in {city} is sunny."
-
-agent = create_deep_agent(
-    model="anthropic:claude-sonnet-4-20250514",
-    tools=[get_weather],
-    interrupt_on={
-        "get_weather": {
-            "allowed_decisions": ["approve", "edit", "reject"]
-        },
-    }
-)
+# Combine options
+python run_article.py --dry-run --topic "Parga Castle" --verbose
 ```
 
-See the [human-in-the-loop documentation](https://docs.langchain.com/oss/python/deepagents/human-in-the-loop) for more details.
+## Scheduling Automated Runs
 
-### `backend`
+The article generator can run automatically every 2-3 days to keep your blog fresh with new content. We provide helper scripts for both macOS/Linux and Windows.
 
-Deep agents use pluggable backends to control how filesystem operations work. By default, files are stored in the agent's ephemeral state. You can configure different backends for local disk access, persistent cross-conversation storage, or hybrid routing.
+### macOS/Linux (cron)
 
-```python
-from deepagents import create_deep_agent
-from deepagents.backends import FilesystemBackend
+We provide a setup script that automatically configures cron for you.
 
-agent = create_deep_agent(
-    backend=FilesystemBackend(root_dir="/path/to/project"),
-)
+#### Quick Setup (Recommended)
+
+```bash
+# Make the script executable (first time only)
+chmod +x scripts/setup_cron.sh
+
+# Install the cron job (runs every 2 days at 9:00 AM)
+./scripts/setup_cron.sh
+
+# Or specify a custom time (10:30 AM)
+CRON_HOUR=10 CRON_MINUTE=30 ./scripts/setup_cron.sh
 ```
 
-Available backends include:
+The script will:
+- Detect your Python installation (virtual environment preferred)
+- Generate the appropriate crontab entry
+- Ask for confirmation before installing
+- Create the logs directory if needed
 
-- **StateBackend** (default): Ephemeral files stored in agent state
-- **FilesystemBackend**: Real disk operations under a root directory
-- **StoreBackend**: Persistent storage using LangGraph Store
-- **CompositeBackend**: Route different paths to different backends
+#### Managing the Cron Job
 
-See the [backends documentation](https://docs.langchain.com/oss/python/deepagents/backends) for more details.
+```bash
+# Check if the cron job is installed
+./scripts/setup_cron.sh status
 
-### Long-term Memory
+# Remove the cron job
+./scripts/setup_cron.sh remove
 
-Deep agents can maintain persistent memory across conversations using a `CompositeBackend` that routes specific paths to durable storage.
-
-This enables hybrid memory where working files remain ephemeral while important data (like user preferences or knowledge bases) persists across threads.
-
-```python
-from deepagents import create_deep_agent
-from deepagents.backends import CompositeBackend, StateBackend, StoreBackend
-from langgraph.store.memory import InMemoryStore
-
-agent = create_deep_agent(
-    backend=CompositeBackend(
-        default=StateBackend(),
-        routes={"/memories/": StoreBackend(store=InMemoryStore())},
-    ),
-)
+# View help
+./scripts/setup_cron.sh help
 ```
 
-Files under `/memories/` will persist across all conversations, while other paths remain temporary. Use cases include:
+#### Manual Setup (Alternative)
 
-- Preserving user preferences across sessions
-- Building knowledge bases from multiple conversations
-- Self-improving instructions based on feedback
-- Maintaining research progress across sessions
+If you prefer to set up cron manually:
 
-See the [long-term memory documentation](https://docs.langchain.com/oss/python/deepagents/long-term-memory) for more details.
+```bash
+# Open crontab editor
+crontab -e
 
-## Built-in Tools
+# Add this line (customize paths):
+0 9 */2 * * cd /path/to/project && /path/to/venv/bin/python run_article.py >> logs/scheduled_runs.log 2>&1
+```
 
-<img src=".github/images/deepagents_tools.png" alt="deep agent" width="600"/>
+> 💡 **Tip**: Use [crontab.guru](https://crontab.guru/) to help create cron expressions.
 
-Every deep agent created with `create_deep_agent` comes with a standard set of tools:
+#### Verify Cron is Working
 
-| Tool Name | Description | Provided By |
-|-----------|-------------|-------------|
-| `write_todos` | Create and manage structured task lists for tracking progress through complex workflows | TodoListMiddleware |
-| `read_todos` | Read the current todo list state | TodoListMiddleware |
-| `ls` | List all files in a directory (requires absolute path) | FilesystemMiddleware |
-| `read_file` | Read content from a file with optional pagination (offset/limit parameters) | FilesystemMiddleware |
-| `write_file` | Create a new file or completely overwrite an existing file | FilesystemMiddleware |
-| `edit_file` | Perform exact string replacements in files | FilesystemMiddleware |
-| `glob` | Find files matching a pattern (e.g., `**/*.py`) | FilesystemMiddleware |
-| `grep` | Search for text patterns within files | FilesystemMiddleware |
-| `execute`* | Run shell commands in a sandboxed environment | FilesystemMiddleware |
-| `task` | Delegate tasks to specialized sub-agents with isolated context windows | SubAgentMiddleware |
+```bash
+# List all cron jobs
+crontab -l
 
-The `execute` tool is only available if the backend implements `SandboxBackendProtocol`. By default, it uses the in-memory state backend which does not support command execution. As shown, these tools (along with other capabilities) are provided by default middleware:
+# Check the log file after a scheduled run
+tail -f logs/scheduled_runs.log
 
-See the [agent harness documentation](https://docs.langchain.com/oss/python/deepagents/harness) for more details on built-in tools and capabilities.
+# Test the script manually first
+python run_article.py --dry-run
+```
 
-## Built-in Middleware
+### Windows (Task Scheduler)
 
-`deepagents` uses middleware under the hood. Here is the list of the middleware used.
+We provide both a PowerShell script and an XML template for Windows Task Scheduler.
 
-| Middleware | Purpose |
-|------------|---------|
-| **TodoListMiddleware** | Task planning and progress tracking |
-| **FilesystemMiddleware** | File operations and context offloading (auto-saves large results) |
-| **SubAgentMiddleware** | Delegate tasks to isolated sub-agents |
-| **SummarizationMiddleware** | Auto-summarizes when context exceeds 170k tokens |
-| **AnthropicPromptCachingMiddleware** | Caches system prompts to reduce costs (Anthropic only) |
-| **PatchToolCallsMiddleware** | Fixes dangling tool calls from interruptions |
-| **HumanInTheLoopMiddleware** | Pauses execution for human approval (requires `interrupt_on` config) |
+#### Option 1: PowerShell Script (Recommended)
 
-## Built-in prompts
+```powershell
+# Open PowerShell and navigate to the project directory
+cd C:\path\to\seo-article-generator
 
-The middleware automatically adds instructions about the standard tools. Your custom instructions should **complement, not duplicate** these defaults:
+# Install the scheduled task (runs every 2 days at 9:00 AM)
+.\scripts\setup_scheduled_task.ps1
 
-#### From [TodoListMiddleware](https://github.com/langchain-ai/langchain/blob/master/libs/langchain/langchain/agents/middleware/todo.py)
+# Or specify a custom time (10:30 AM)
+.\scripts\setup_scheduled_task.ps1 -Hour 10 -Minute 30
+```
 
-- Explains when to use `write_todos` and `read_todos`
-- Guidance on marking tasks completed
-- Best practices for todo list management
-- When NOT to use todos (simple tasks)
+The script will:
+- Detect your Python installation (virtual environment preferred)
+- Create a wrapper batch script for proper logging
+- Register the task with Windows Task Scheduler
+- Ask for confirmation before installing
 
-#### From [FilesystemMiddleware](libs/deepagents/deepagents/middleware/filesystem.py)
+#### Managing the Scheduled Task (PowerShell)
 
-- Lists all filesystem tools (`ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`, `execute`*)
-- Explains that file paths must start with `/`
-- Describes each tool's purpose and parameters
-- Notes about context offloading for large tool results
+```powershell
+# Check if the task is installed
+.\scripts\setup_scheduled_task.ps1 -Action Status
 
-#### From [SubAgentMiddleware](libs/deepagents/deepagents/middleware/subagents.py)
+# Remove the scheduled task
+.\scripts\setup_scheduled_task.ps1 -Action Remove
 
-- Explains the `task()` tool for delegating to sub-agents
-- When to use sub-agents vs when NOT to use them
-- Guidance on parallel execution
-- Subagent lifecycle (spawn → run → return → reconcile)
+# View help
+.\scripts\setup_scheduled_task.ps1 -Action Help
+
+# Run the task immediately (for testing)
+Start-ScheduledTask -TaskName "NaturaPargaArticleGenerator"
+```
+
+#### Option 2: Import XML Template (GUI Method)
+
+For users who prefer the graphical interface:
+
+1. **Customize the XML template**:
+   - Open `scripts/natura_parga_task.xml` in a text editor
+   - Replace `C:\PATH\TO\PROJECT` with your actual project path
+   - Replace `C:\PATH\TO\PYTHON` with your Python path
+   - Replace `YOUR_USERNAME` with your Windows username
+
+2. **Import the task**:
+   - Press `Win + R`, type `taskschd.msc`, press Enter
+   - In the Actions panel, click **Import Task...**
+   - Select the modified `natura_parga_task.xml` file
+   - Review settings and click **OK**
+
+#### Option 3: Manual Setup (GUI)
+
+1. **Open Task Scheduler**:
+   - Press `Win + R`, type `taskschd.msc`, press Enter
+
+2. **Create a new task**:
+   - Click **Create Task** (not "Create Basic Task")
+   
+3. **General tab**:
+   - Name: `NaturaPargaArticleGenerator`
+   - Description: "Generates SEO articles for Natura Parga"
+   - Select "Run whether user is logged on or not" (optional)
+
+4. **Triggers tab**:
+   - Click **New**
+   - Begin the task: "On a schedule"
+   - Settings: Daily, recur every **2** days
+   - Start time: 9:00 AM (or your preference)
+
+5. **Actions tab**:
+   - Click **New**
+   - Action: "Start a program"
+   - Program/script: `cmd.exe`
+   - Arguments: `/c cd /d "C:\path\to\project" && python run_article.py >> logs\scheduled_runs.log 2>&1`
+
+6. **Conditions tab**:
+   - ✅ Start only if network connection is available
+   - ❌ Uncheck "Start only if the computer is on AC power"
+
+7. **Settings tab**:
+   - ✅ Allow task to be run on demand
+   - ✅ If the task fails, restart every: 1 hour
+   - ✅ Stop the task if it runs longer than: 1 hour
+
+8. Click **OK** and enter your password if prompted
+
+#### Verify Task Scheduler is Working
+
+```powershell
+# Check task status
+Get-ScheduledTask -TaskName "NaturaPargaArticleGenerator" | Select-Object State, LastRunTime, NextRunTime
+
+# View task details
+Get-ScheduledTaskInfo -TaskName "NaturaPargaArticleGenerator"
+
+# Check the log file
+Get-Content logs\scheduled_runs.log -Tail 50
+
+# Test manually first
+python run_article.py --dry-run
+```
+
+### Viewing Logs
+
+Both scheduling methods log output to `logs/scheduled_runs.log`:
+
+```bash
+# macOS/Linux - watch log in real-time
+tail -f logs/scheduled_runs.log
+
+# macOS/Linux - view last 100 lines
+tail -100 logs/scheduled_runs.log
+```
+
+```powershell
+# Windows - view last 50 lines
+Get-Content logs\scheduled_runs.log -Tail 50
+
+# Windows - watch log in real-time (PowerShell 7+)
+Get-Content logs\scheduled_runs.log -Wait -Tail 10
+```
+
+### Troubleshooting Scheduled Tasks
+
+#### ❌ Cron job doesn't run
+
+**Check these common issues:**
+
+1. **Cron daemon not running**:
+   ```bash
+   # Check if cron is running
+   pgrep cron || pgrep crond
+   
+   # Start cron (varies by system)
+   sudo service cron start
+   ```
+
+2. **Path issues**: Cron runs with a minimal environment
+   ```bash
+   # Always use absolute paths in cron
+   # ✅ Good: /home/user/project/venv/bin/python
+   # ❌ Bad: python
+   ```
+
+3. **Permissions**: Check script permissions
+   ```bash
+   ls -la run_article.py
+   chmod +x run_article.py  # if needed
+   ```
+
+#### ❌ Windows Task doesn't run
+
+**Check these common issues:**
+
+1. **View task history**:
+   - Open Task Scheduler
+   - Select the task
+   - Click "History" tab (enable if disabled: Action → Enable All Tasks History)
+
+2. **Common error codes**:
+   - `0x1`: Task is running or queued
+   - `0x41301`: Task is running
+   - `0x80070005`: Access denied (try running as admin)
+   - `0x1F`: Network not available
+
+3. **Test manually first**:
+   ```powershell
+   cd C:\path\to\project
+   python run_article.py --dry-run
+   ```
+
+#### ❌ Script runs but fails
+
+1. **Check the log file** for error messages
+2. **Verify environment variables** are accessible to the scheduled task
+3. **Test API connectivity** from the scheduled context
+
+## Troubleshooting
+
+### Common Issues
+
+#### ❌ "Missing required environment variables"
+
+**Problem**: Config validation fails with missing variables.
+
+**Solution**:
+1. Ensure `.env` file exists: `cp .env.example .env`
+2. Verify all required variables are set
+3. Check for typos in variable names
+4. Run `python config.py` to validate
+
+#### ❌ "401 Unauthorized" from WordPress
+
+**Problem**: WordPress API returns authentication error.
+
+**Solutions**:
+1. Verify `WORDPRESS_USERNAME` is correct (case-sensitive)
+2. Regenerate the Application Password in WordPress
+3. Ensure no spaces in the password in `.env` (format: `xxxx xxxx xxxx xxxx xxxx xxxx`)
+4. Check that Application Passwords are enabled on your WordPress site
+5. Verify your user has sufficient permissions (Administrator or Editor role)
+
+#### ❌ "403 Forbidden" from WordPress
+
+**Problem**: WordPress blocks the API request.
+
+**Solutions**:
+1. Check if your hosting provider blocks REST API requests
+2. Verify no security plugins are blocking the requests
+3. Try adding your IP to any firewall whitelist
+4. Check `.htaccess` for REST API restrictions
+
+#### ❌ "Invalid API key" from Anthropic
+
+**Problem**: Claude API rejects the API key.
+
+**Solutions**:
+1. Verify the key starts with `sk-ant-api03-`
+2. Check for leading/trailing whitespace in `.env`
+3. Ensure your Anthropic account has billing set up
+4. Generate a new key if the current one may be compromised
+
+#### ❌ "Rate limit exceeded"
+
+**Problem**: Too many API requests.
+
+**Solutions**:
+1. Wait for the rate limit window to reset (usually 1 minute)
+2. Reduce frequency of scheduled runs
+3. Upgrade your API plan for higher limits
+
+#### ❌ "Connection timeout"
+
+**Problem**: Network issues when connecting to APIs.
+
+**Solutions**:
+1. Check your internet connection
+2. Verify the service isn't experiencing an outage
+3. Check if a firewall or proxy is blocking connections
+4. Try increasing timeout values in the code
+
+### Debug Mode
+
+Run with debug logging for more information:
+
+```bash
+# Via command line flag
+python run_article.py --verbose
+
+# Or via environment variable
+LOG_LEVEL=DEBUG python run_article.py
+```
+
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. Check the logs for detailed error messages
+2. Run `python config.py` to validate configuration
+3. Test API keys individually using their respective dashboards
+4. Review WordPress REST API documentation for publishing issues
+
+## Project Structure
+
+```
+seo-article-generator/
+├── .env.example          # Environment variable template
+├── .env                  # Your local configuration (git-ignored)
+├── config.py             # Configuration management
+├── run_article.py        # Main entry point / orchestrator
+├── article_generator.py  # AI content generation
+├── topic_manager.py      # Topic selection and tracking
+├── wordpress_publisher.py # WordPress API integration
+├── requirements.txt      # Python dependencies
+├── README.md             # This file
+├── logs/                 # Log files (auto-created)
+│   ├── article_generator.log
+│   └── scheduled_runs.log
+└── scripts/              # Scheduling helper scripts
+    ├── setup_cron.sh           # macOS/Linux cron setup
+    ├── setup_scheduled_task.ps1 # Windows Task Scheduler setup
+    └── natura_parga_task.xml   # Windows task XML template
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Made with 🌿 for Natura Parga**

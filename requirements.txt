@@ -1,0 +1,20 @@
+# Automated SEO Article Generator - Dependencies
+# Install with: pip install -r requirements.txt
+
+# AI/LLM Libraries
+anthropic>=0.30.0          # Claude API client for content generation
+# langchain-anthropic>=0.1.0  # Alternative: LangChain's Anthropic integration
+
+# Research and Search
+tavily-python>=0.3.0       # Tavily web search API for research
+
+# HTTP and API Communication
+requests>=2.31.0           # HTTP library for WordPress REST API
+
+# Configuration Management
+python-dotenv>=1.0.0       # Load environment variables from .env file
+
+# Optional Dependencies (uncomment if needed)
+# openai>=1.30.0           # OpenAI API for fallback LLM
+# langchain>=0.2.0         # LangChain framework for advanced AI workflows
+# schedule>=1.2.0          # In-process task scheduling
