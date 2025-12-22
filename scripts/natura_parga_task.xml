@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<!--
+  Windows Task Scheduler XML Definition
+  Natura Parga Article Generator
+  
+  INSTRUCTIONS:
+  1. Copy this file and customize the paths below
+  2. Replace all instances of:
+     - C:\PATH\TO\PROJECT - with your actual project path
+     - C:\PATH\TO\PYTHON  - with your Python executable path
+     - YOUR_USERNAME      - with your Windows username
+  3. Import via Task Scheduler:
+     - Open Task Scheduler (taskschd.msc)
+     - Click "Import Task..." in the Actions panel
+     - Select this XML file
+     - Review and confirm settings
+  
+  CUSTOMIZATION GUIDE:
+  - The task runs every 2 days at 9:00 AM by default
+  - Modify <StartBoundary> to change the start time
+  - Modify <Interval> under DaysInterval to change frequency
+-->
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Date>2024-01-01T00:00:00</Date>
+    <Author>NaturaParga</Author>
+    <Description>Automatically generates and publishes SEO articles for Natura Parga every 2 days. This task runs the article generator script which researches topics, creates content using AI, and publishes to WordPress.</Description>
+    <URI>\NaturaPargaArticleGenerator</URI>
+  </RegistrationInfo>
+  
+  <Triggers>
+    <!-- Trigger: Run every 2 days at 9:00 AM -->
+    <CalendarTrigger>
+      <Repetition>
+        <Interval>P2D</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+      <!-- CUSTOMIZE: Change this date/time to when you want the first run -->
+      <!-- Format: YYYY-MM-DDTHH:MM:SS -->
+      <StartBoundary>2024-01-01T09:00:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByDay>
+        <DaysInterval>2</DaysInterval>
+      </ScheduleByDay>
+    </CalendarTrigger>
+  </Triggers>
+  
+  <Principals>
+    <Principal id="Author">
+      <!-- CUSTOMIZE: Replace YOUR_USERNAME with your Windows username -->
+      <UserId>YOUR_USERNAME</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <DisallowStartOnRemoteAppSession>false</DisallowStartOnRemoteAppSession>
+    <UseUnifiedSchedulingEngine>true</UseUnifiedSchedulingEngine>
+    <WakeToRun>false</WakeToRun>
+    <!-- Execution time limit: 1 hour -->
+    <ExecutionTimeLimit>PT1H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  
+  <Actions Context="Author">
+    <Exec>
+      <Command>cmd.exe</Command>
+      <!-- 
+        CUSTOMIZE: Replace these paths:
+        - C:\PATH\TO\PROJECT      -> Your actual project directory
+        - C:\PATH\TO\PYTHON       -> Path to python.exe (in venv or system)
+        
+        Example with virtual environment:
+        /c cd /d "C:\Users\John\Projects\seo-article-generator" ^&^& "C:\Users\John\Projects\seo-article-generator\venv\Scripts\python.exe" run_article.py >> "logs\scheduled_runs.log" 2>&1
+        
+        Example with system Python:
+        /c cd /d "C:\Users\John\Projects\seo-article-generator" ^&^& python run_article.py >> "logs\scheduled_runs.log" 2>&1
+      -->
+      <Arguments>/c cd /d "C:\PATH\TO\PROJECT" ^&^& "C:\PATH\TO\PYTHON\python.exe" run_article.py >> "logs\scheduled_runs.log" 2>&1</Arguments>
+      <!-- CUSTOMIZE: Set this to your project directory -->
+      <WorkingDirectory>C:\PATH\TO\PROJECT</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>
