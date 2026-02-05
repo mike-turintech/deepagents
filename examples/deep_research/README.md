@@ -1,5 +1,17 @@
 # 🚀 Deep Research
 
+## 📋 Recent Changes
+
+### Performance Optimizations
+
+This PR introduces performance improvements to the research agent using Python's `lru_cache` decorator:
+
+- **Cached Date Retrieval**: The current date is now cached to avoid repeated `datetime.now()` calls
+- **Pre-formatted Instructions**: Delegation and researcher instruction strings are pre-formatted and cached to avoid repeated string formatting operations
+- **Efficient Memoization**: Uses `@lru_cache(maxsize=1)` for simple, efficient caching of values that don't change during runtime
+
+These optimizations improve agent initialization and execution efficiency without affecting functionality.
+
 ## 🚀 Quickstart
 
 **Prerequisites**: Install [uv](https://docs.astral.sh/uv/) package manager:
