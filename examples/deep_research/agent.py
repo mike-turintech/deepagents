@@ -5,6 +5,7 @@ for conducting web research with strategic thinking and context management.
 """
 
 from datetime import datetime
+from functools import lru_cache
 
 from langchain.chat_models import init_chat_model
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -21,8 +22,20 @@ from research_agent.tools import tavily_search, think_tool
 max_concurrent_research_units = 3
 max_researcher_iterations = 3
 
-# Get current date
-current_date = datetime.now().strftime("%Y-%m-%d")
+# Get current date - cached to avoid repeated datetime calls
+@lru_cache(maxsize=1)
+def get_current_date():
+    return datetime.now().strftime("%Y-%m-%d")
+
+current_date = get_current_date()
+
+# Pre-format and cache the delegation instructions to avoid repeated string formatting
+@lru_cache(maxsize=1)
+def get_delegation_instructions():
+    return SUBAGENT_DELEGATION_INSTRUCTIONS.format(
+        max_concurrent_research_units=max_concurrent_research_units,
+        max_researcher_iterations=max_researcher_iterations,
+    )
 
 # Combine orchestrator instructions (RESEARCHER_INSTRUCTIONS only for sub-agents)
 INSTRUCTIONS = (
@@ -30,17 +43,19 @@ INSTRUCTIONS = (
     + "\n\n"
     + "=" * 80
     + "\n\n"
-    + SUBAGENT_DELEGATION_INSTRUCTIONS.format(
-        max_concurrent_research_units=max_concurrent_research_units,
-        max_researcher_iterations=max_researcher_iterations,
-    )
+    + get_delegation_instructions()
 )
+
+# Pre-format and cache the researcher instructions
+@lru_cache(maxsize=1)
+def get_researcher_instructions():
+    return RESEARCHER_INSTRUCTIONS.format(date=current_date)
 
 # Create research sub-agent
 research_sub_agent = {
     "name": "research-agent",
     "description": "Delegate research to the sub-agent researcher. Only give this researcher one topic at a time.",
-    "system_prompt": RESEARCHER_INSTRUCTIONS.format(date=current_date),
+    "system_prompt": get_researcher_instructions(),
     "tools": [tavily_search, think_tool],
 }
 
